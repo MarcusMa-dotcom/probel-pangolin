@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Probel Pangolin</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css', v=version) }}">
+</head>
+<body>
+  <header class="bar">
+    <h1 class="brand"><img src="{{ url_for('static', filename='logo.png') }}" alt="" width="30" height="30">Probel Pangolin <span class="version">{{ version }}</span></h1>
+    <nav class="tabs" aria-label="Views">
+      <button type="button" id="tab-controller" aria-pressed="true">Controller</button>
+      <button type="button" id="tab-router" aria-pressed="false">Router</button>
+      <button type="button" id="tab-analyzer" aria-pressed="false">Analyzer</button>
+      <button type="button" id="tab-settings" aria-pressed="false">Settings</button>
+      <button type="button" id="tab-about" aria-pressed="false">About</button>
+      <button type="button" id="logout" class="quiet" hidden>Log out</button>
+    </nav>
+    <p class="states">
+      <span id="co-state" class="state" aria-live="polite">Disconnected</span>
+      <span id="ro-state" class="state" aria-live="polite">Router off</span>
+    </p>
+  </header>
+
+  <p id="notice" class="notice" role="alert" hidden></p>
+
+  <main>
+  <div class="grid" id="view-controller">
+    <section class="panel">
+      <h2>Connection</h2>
+      <div class="fields">
+        <label>Protocol
+          <select id="co_protocol">{% for key, label in protocols.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select>
+        </label>
+        <label class="grow">Host
+          <input id="co_host" type="text" autocomplete="off" spellcheck="false">
+        </label>
+        <label>Port
+          <input id="co_port" type="number" min="1" max="65535" class="short">
+        </label>
+      </div>
+      <div class="fields">
+        <label>Matrix
+          <input id="co_matrix" type="number" min="1" max="256" class="short">
+        </label>
+        <label>Levels
+          <input id="co_levels" type="number" min="1" max="256" class="short">
+        </label>
+        <label>Attempts
+          <input id="co_attempts" type="number" min="1" max="10" class="short">
+        </label>
+        <label id="co-destinations-field" hidden>Destinations to ask
+          <input id="co_destinations" type="number" min="1" max="1024" class="short">
+        </label>
+        <label>Extended commands
+          <select id="co_extended">
+            <option value="auto">automatic</option>
+            <option value="on">always</option>
+            <option value="off">never</option>
+          </select>
+        </label>
+        <label>Name length
+          <select id="co_name_length">
+            <option value="4">4 characters</option>
+            <option value="8">8 characters</option>
+            <option value="12">12 characters</option>
+          </select>
+        </label>
+      </div>
+      <div class="checks">
+        <label><input id="co_query_commands" type="checkbox"> Ask for implemented commands</label>
+        <label><input id="co_fetch_names" type="checkbox"> Read names</label>
+        <label><input id="co_fetch_tally" type="checkbox"> Read all crosspoints</label>
+      </div>
+      <div class="checks">
+        <label><input id="co_wait_ack" type="checkbox"> Wait for ACK</label>
+        <label><input id="co_keepalive" type="checkbox"> Keep-alive</label>
+        <label><input id="co_auto_reconnect" type="checkbox"> Reconnect by itself</label>
+      </div>
+      <p class="hint">Connects to the SW-P-08 port of a router or router controller, or to the Router tab of this program. The port is set at the router, 8910 is a common choice. The first row of switches says what is read right after connecting. Automatic uses the extended commands when the router reports them or the numbers need them. Attempts is how often a message is sent until the router acknowledges it. The specification recommends 5, with one second each.</p>
+      <p id="co-old-hint" class="hint" hidden>SW-P-02 is the older General Switcher protocol, usually on TCP port 2000: one level, no matrix number, no names and no ACK. A take is confirmed by the CONNECTED of the router. There is no tally dump either, so "Read all crosspoints" asks the first destinations one by one, as many as set here.</p>
+      <div class="actions">
+        <button type="button" id="co-connect" class="primary">Connect</button>
+      </div>
+      <p id="co-info" class="hint" aria-live="polite"></p>
+      <p id="co-error" class="error" aria-live="polite"></p>
+    </section>
+
+    <form class="panel" id="co-take-form" autocomplete="off">
+      <h2>Take</h2>
+      <div class="fields">
+        <label class="grow">Source
+          <input id="co-source" type="text" list="co-source-list" placeholder="number or name" spellcheck="false">
+        </label>
+        <label class="grow">Destination
+          <input id="co-dest" type="text" list="co-dest-list" placeholder="number or name" spellcheck="false">
+        </label>
+        <label>Level
+          <select id="co-level"></select>
+        </label>
+      </div>
+      <datalist id="co-source-list"></datalist>
+      <datalist id="co-dest-list"></datalist>
+      <div class="checks">
+        <label><input id="co_confirm" type="checkbox"> Wait for the confirmation of the router</label>
+      </div>
+      <div class="actions">
+        <button type="submit" id="co-take" class="primary">Take</button>
+        <button type="button" id="co-ask">Ask the router</button>
+      </div>
+      <p id="co-result" class="hint" aria-live="polite"></p>
+      <h3>Salvo group</h3>
+      <div class="fields">
+        <label>Number
+          <input id="co-salvo" type="number" min="0" max="127" value="0" class="short">
+        </label>
+        <button type="button" id="co-salvo-add">Store this take</button>
+        <button type="button" id="co-salvo-go">Set all at once</button>
+      </div>
+      <div class="actions wrap">
+        <button type="button" id="co-salvo-read" class="quiet">Read the group</button>
+        <button type="button" id="co-salvo-clear" class="quiet">Clear the group</button>
+      </div>
+      <h3>Read again</h3>
+      <div class="actions wrap">
+        <button type="button" id="co-dump" class="quiet">All crosspoints</button>
+        <button type="button" id="co-names" class="quiet">Names</button>
+        <button type="button" id="co-commands" class="quiet">Implemented commands</button>
+        <button type="button" id="co-dual" class="quiet">Dual controller status</button>
+      </div>
+      <p class="hint">With the confirmation switched on, a take counts only when the router answers with Crosspoint Connected for that source. A protected destination answers with the source it keeps. A salvo group (0 to 127) collects takes at the router and sets them all at the same moment. Source, destination and level come from the fields above.</p>
+    </form>
+
+    <section class="panel wide">
+      <h2>Crosspoints</h2>
+      <div class="toolbar">
+        <label class="inline">Filter
+          <input id="co-filter" type="text" class="short" placeholder="name or number" spellcheck="false">
+        </label>
+        <label><input id="co-grid-on" type="checkbox"> Grid</label>
+        <label class="inline" id="co-grid-level-field">Level
+          <select id="co-grid-level"></select>
+        </label>
+        <span id="co-count" class="hint"></span>
+      </div>
+      <div class="table-wrap" id="co-table-wrap">
+        <table id="co-xpt" class="tree xpt">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="table-wrap" id="co-grid-wrap" hidden>
+        <table id="co-grid" class="matrix"></table>
+      </div>
+      <p id="co-xpt-note" class="hint">Not connected.</p>
+    </section>
+
+    <section class="panel wide">
+      <h2>Trace</h2>
+      <p id="co-stats" class="stats"></p>
+      <div class="toolbar">
+        <label><input id="co-show-acks" type="checkbox" checked> Show ACK and NAK</label>
+        <label><input id="co-pause" type="checkbox"> Hold the display</label>
+        <button type="button" id="co-clear-trace" class="quiet">Clear and count anew</button>
+        <a id="co-export" class="button quiet" href="/ui/api/controller/trace" download="probel-pangolin-controller-trace.json">Export</a>
+        <button type="button" id="co-to-analyzer" class="quiet">Open in the analyzer</button>
+      </div>
+      <ol id="co-trace" class="log trace"></ol>
+      <p class="hint">Every frame as it crossed the wire, newest first. TX went to the router, RX came from it.</p>
+    </section>
+
+    <form class="panel wide" id="co-raw-form" autocomplete="off">
+      <h2>Own message</h2>
+      <div class="fields">
+        <label class="grow">Bytes in hex
+          <input id="co-raw" type="text" placeholder="01 00 00 02" spellcheck="false">
+        </label>
+        <label>Send as
+          <select id="co-raw-mode">
+            <option value="framed">message: frame it and wait for ACK</option>
+            <option value="raw">bytes exactly as written</option>
+          </select>
+        </label>
+        <button type="submit" id="co-raw-send">Send</button>
+      </div>
+      <pre id="co-raw-preview" class="hex" aria-live="polite">Type the data bytes of a message: the command byte and what follows. DLE STX, byte count, checksum and DLE ETX are added.</pre>
+      <p class="hint">For commands this program has no button for, and for testing a router with frames that are wrong on purpose. A message goes out even if the router did not list its command.</p>
+    </form>
+
+    <section class="panel wide">
+      <h2>Implemented commands</h2>
+      <ul id="co-command-list" class="chips"></ul>
+      <p id="co-command-note" class="hint">Not asked yet.</p>
+    </section>
+
+    <section class="panel wide">
+      <h2>Activity</h2>
+      <div class="checks">
+        <span>Takes, answers and crosspoints that changed at the router.</span>
+        <button type="button" id="co-clear-log" class="quiet">Clear</button>
+      </div>
+      <ol id="co-log" class="log rx"></ol>
+    </section>
+  </div>
+
+  <div class="grid" id="view-router" hidden>
+    <section class="panel">
+      <h2>Virtual router</h2>
+      <div class="fields">
+        <label>Protocol
+          <select id="ro_protocol">{% for key, label in protocols.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select>
+        </label>
+        <label class="grow">Listen address
+          <input id="ro_bind" type="text" autocomplete="off" spellcheck="false">
+        </label>
+        <label>Port
+          <input id="ro_port" type="number" min="1" max="65535" class="short">
+        </label>
+      </div>
+      <div class="fields">
+        <label>Sources
+          <input id="ro_sources" type="number" min="1" max="{{ max_ports }}" class="short">
+        </label>
+        <label>Destinations
+          <input id="ro_dests" type="number" min="1" max="{{ max_ports }}" class="short">
+        </label>
+        <label>Levels
+          <input id="ro_levels" type="number" min="1" max="{{ max_levels }}" class="short">
+        </label>
+        <label>Matrix
+          <input id="ro_matrix" type="number" min="1" max="256" class="short">
+        </label>
+      </div>
+      <div class="checks">
+        <label><input id="ro_extended" type="checkbox"> Extended commands</label>
+        <label><input id="ro_autostart" type="checkbox"> Start with the program</label>
+      </div>
+      <p class="hint">A router made of software, for controllers under test. 0.0.0.0 listens on all network interfaces, 127.0.0.1 only on this machine. SW-P-08 has no login: whoever reaches the port can switch. Changing protocol, size, address or command set restarts a running router. As an SW-P-02 router it has one level, up to 1023 sources and 1024 destinations, and never answers with NAK.</p>
+      <div class="actions">
+        <button type="button" id="ro-start" class="primary">Start</button>
+      </div>
+      <p id="ro-error" class="error" aria-live="polite"></p>
+    </section>
+
+    <form class="panel" id="ro-fault-form" autocomplete="off">
+      <h2>Controllers and faults</h2>
+      <ul id="ro-clients" class="plain"></ul>
+      <p id="ro-clients-note" class="hint">No controller connected.</p>
+      <h3>Faults on purpose</h3>
+      <div class="fields">
+        <label>Leave unanswered
+          <input id="ro-drop" type="number" min="0" max="1000" value="0" class="short">
+        </label>
+        <label>Refuse with NAK
+          <input id="ro-nak" type="number" min="0" max="1000" value="0" class="short">
+        </label>
+        <button type="submit" id="ro-fault">Arm</button>
+      </div>
+      <p id="ro-fault-state" class="hint" aria-live="polite"></p>
+      <div class="actions">
+        <button type="button" id="ro-kick" class="quiet">Drop all controllers</button>
+      </div>
+      <h3>Salvo groups</h3>
+      <ul id="ro-salvos" class="plain"></ul>
+      <p id="ro-salvos-note" class="hint">No crosspoints stored by a controller.</p>
+      <p class="hint">The numbers count the next messages of any controller. An unanswered message shows whether a controller repeats it, a NAK whether it gives up cleanly, a dropped connection whether it comes back.</p>
+    </form>
+
+    <section class="panel wide">
+      <h2>Crosspoints</h2>
+      <div class="toolbar">
+        <label class="inline">Filter
+          <input id="ro-filter" type="text" class="short" placeholder="name or number" spellcheck="false">
+        </label>
+        <label><input id="ro-grid-on" type="checkbox"> Grid</label>
+        <label class="inline" id="ro-grid-level-field">Level
+          <select id="ro-grid-level"></select>
+        </label>
+        <label><input id="ro-announce" type="checkbox" checked> Tell the controllers</label>
+        <span id="ro-count" class="hint"></span>
+      </div>
+      <div class="table-wrap" id="ro-table-wrap">
+        <table id="ro-xpt" class="tree xpt">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="table-wrap" id="ro-grid-wrap" hidden>
+        <table id="ro-grid" class="matrix"></table>
+      </div>
+      <p class="hint">Change a source here as if a button was pressed at the router itself. With "Tell the controllers" every controller gets a Crosspoint Connected. Without it they find out only when they ask. A protected destination keeps its source when a controller asks for another one.</p>
+    </section>
+
+    <section class="panel wide">
+      <h2>Source names</h2>
+      <div class="table-wrap tall">
+        <table id="ro-sources" class="tree xpt">
+          <thead><tr><th scope="col">Source</th><th scope="col">Name</th><th scope="col">On destinations</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p id="ro-sources-note" class="hint"></p>
+    </section>
+
+    <section class="panel wide">
+      <h2>Trace</h2>
+      <p id="ro-stats" class="stats"></p>
+      <div class="toolbar">
+        <label><input id="ro-show-acks" type="checkbox" checked> Show ACK and NAK</label>
+        <label><input id="ro-pause" type="checkbox"> Hold the display</label>
+        <button type="button" id="ro-clear-trace" class="quiet">Clear and count anew</button>
+        <a id="ro-export" class="button quiet" href="/ui/api/router/trace" download="probel-pangolin-router-trace.json">Export</a>
+        <button type="button" id="ro-to-analyzer" class="quiet">Open in the analyzer</button>
+      </div>
+      <ol id="ro-trace" class="log trace"></ol>
+      <p class="hint">Every frame as it crossed the wire, newest first. RX came from a controller, TX went to it.</p>
+    </section>
+
+    <section class="panel wide">
+      <h2>Activity</h2>
+      <div class="checks">
+        <span>What controllers ask for, and what was changed here.</span>
+        <button type="button" id="ro-clear-log" class="quiet">Clear</button>
+      </div>
+      <ol id="ro-log" class="log rx"></ol>
+    </section>
+  </div>
+
+  <div class="grid" id="view-analyzer" hidden>
+    <form class="panel wide" id="an-decode-form" autocomplete="off">
+      <h2>Read captured bytes</h2>
+      <div class="fields">
+        <label>Protocol
+          <select id="an-protocol">{% for key, label in protocols.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select>
+        </label>
+      </div>
+      <label class="block">Bytes in hex, in the order they crossed the wire
+        <textarea id="an-capture" rows="5" spellcheck="false" placeholder="10 02 02 01 00 02 04 05 F2 10 03 10 06"></textarea>
+      </label>
+      <div class="actions">
+        <button type="submit" class="primary">Read</button>
+        <button type="button" id="an-example" class="quiet">Example</button>
+        <button type="button" id="an-clear" class="quiet">Empty</button>
+      </div>
+      <p id="an-summary" class="hint" aria-live="polite"></p>
+      <div class="table-wrap">
+        <table id="an-rows" class="tree" hidden>
+          <thead><tr><th scope="col">Offset</th><th scope="col">Bytes</th><th scope="col">Meaning</th><th scope="col">Frame check</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="hint">Takes the bytes of a serial sniffer, a hex stream copied from Wireshark, or a trace of this program. Both directions may be mixed. It finds every frame, checks byte count and checksum, undoes the doubled DLE and says what the message means. An ACK in the middle of a frame is allowed and listed on its own.</p>
+    </form>
+
+    <form class="panel wide" id="an-build-form" autocomplete="off">
+      <h2>Build a message</h2>
+      <div class="fields">
+        <label>Message
+          <select id="an-kind" data-kinds="{{ build_kinds.items()|list|tojson|forceescape }}" data-kinds-old="{{ build_kinds_02.items()|list|tojson|forceescape }}">
+            {% for key, label in build_kinds.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+          </select>
+        </label>
+        <label id="an-matrix-field">Matrix
+          <input id="an-matrix" type="number" min="1" max="256" value="1" class="short">
+        </label>
+        <label id="an-level-field">Level
+          <input id="an-level" type="number" min="1" max="256" value="1" class="short">
+        </label>
+        <label id="an-dest-field">Destination
+          <input id="an-dest" type="number" min="1" max="65536" value="1" class="short">
+        </label>
+        <label id="an-source-field">Source
+          <input id="an-source" type="number" min="1" max="65536" value="1" class="short">
+        </label>
+        <label id="an-salvo-field">Salvo
+          <input id="an-salvo" type="number" min="0" max="127" value="0" class="short">
+        </label>
+        <label id="an-index-field">Index
+          <input id="an-index" type="number" min="0" max="127" value="0" class="short">
+        </label>
+        <label id="an-length-field">Name length
+          <select id="an-length">
+            <option value="4">4</option>
+            <option value="8" selected>8</option>
+            <option value="12">12</option>
+          </select>
+        </label>
+        <label class="check" id="an-extended-field"><input id="an-extended" type="checkbox"> Extended</label>
+        <button type="submit">Build</button>
+      </div>
+      <label class="block">Data bytes of the message, to change by hand
+        <input id="an-payload" type="text" spellcheck="false" placeholder="02 00 00 02 04">
+      </label>
+      <pre id="an-frame" class="hex" aria-live="polite">Build a message or type its data bytes to see the frame.</pre>
+      <div class="actions">
+        <button type="button" id="an-send" class="quiet">Send with the controller</button>
+        <button type="button" id="an-to-capture" class="quiet">Add the frame to the captured bytes</button>
+      </div>
+      <p id="an-build-note" class="hint" aria-live="polite">Matrix, level, source and destination count from 1, as on a panel. On the wire they count from 0. Salvo groups and their indexes are 0 to 127 as they are.</p>
+    </form>
+  </div>
+
+  <form class="grid" id="view-settings" hidden autocomplete="off">
+    <section class="panel">
+      <h2>Web interface</h2>
+      <div class="checks">
+        <label><input id="acc_web_enabled" type="checkbox"> Web interface on</label>
+        <label><input id="acc_web_login" type="checkbox"> Require login</label>
+      </div>
+      <div class="fields">
+        <label class="grow">User name
+          <input id="acc_web_user" type="text" maxlength="64" autocomplete="off" spellcheck="false">
+        </label>
+        <label class="grow">New password
+          <input id="acc_web_password" type="password" maxlength="128" autocomplete="new-password">
+        </label>
+      </div>
+      <p id="acc-web-password-state" class="hint"></p>
+      <div class="fields" id="acc-current-row" hidden>
+        <label class="grow">Current web password
+          <input id="acc_current_password" type="password" maxlength="128" autocomplete="current-password">
+        </label>
+      </div>
+      <p class="hint">This page and its login. Switching the web interface off ends your access to this page. Switch it on again in the desktop window or start with <code>--web on</code>.</p>
+    </section>
+
+    <section class="panel">
+      <h2>REST API</h2>
+      <div class="checks">
+        <label><input id="acc_api_enabled" type="checkbox"> REST API on</label>
+        <label><input id="acc_api_login" type="checkbox"> Require login</label>
+      </div>
+      <div class="fields">
+        <label class="grow">User name
+          <input id="acc_api_user" type="text" maxlength="64" autocomplete="off" spellcheck="false">
+        </label>
+        <label class="grow">New password
+          <input id="acc_api_password" type="password" maxlength="128" autocomplete="new-password">
+        </label>
+      </div>
+      <p id="acc-api-password-state" class="hint"></p>
+      <p class="hint">For other programs, under <code id="acc-api-base">/api/v1/</code>. The login is HTTP Basic.</p>
+    </section>
+
+    <section class="panel wide">
+      <h2>Apply</h2>
+      <p class="hint">Passwords need at least {{ min_password }} characters. They are stored as a salted hash, never as text. Leave a password field empty to keep the password that is set. These logins protect this page and the REST API. The SW-P-08 port of the virtual router has no login.</p>
+      <ul id="acc-warnings" class="warnings"></ul>
+      <div class="actions">
+        <button type="submit" id="acc-apply" class="primary">Apply</button>
+      </div>
+      <p id="acc-message" class="hint" aria-live="polite"></p>
+    </section>
+  </form>
+
+  <div class="grid" id="view-about" hidden>
+    <section class="panel wide">
+      <h2>About</h2>
+      <img class="about-logo" src="{{ url_for('static', filename='logo.png') }}" alt="Probel Pangolin logo" width="128" height="128">
+      <p class="about-title">Probel Pangolin {{ version }}</p>
+      <p>{{ about.SUMMARY }}</p>
+      <p>Author: {{ about.AUTHOR }}<br>License: {{ about.LICENSE_NAME }}. {{ about.COPYRIGHT }}.</p>
+      <p>Source code: <a href="{{ about.HOMEPAGE }}" rel="noopener">{{ about.HOMEPAGE }}</a></p>
+      <p>{{ about.TRADEMARK }}</p>
+      <p>{{ about.DISCLAIMER }}</p>
+      <pre class="hex license">{{ about.LICENSE_TEXT }}</pre>
+    </section>
+  </div>
+  </main>
+
+  <script src="{{ url_for('static', filename='app.js', v=version) }}"></script>
+  <script src="{{ url_for('static', filename='controller.js', v=version) }}"></script>
+  <script src="{{ url_for('static', filename='router.js', v=version) }}"></script>
+  <script src="{{ url_for('static', filename='analyzer.js', v=version) }}"></script>
+  <script src="{{ url_for('static', filename='settings.js', v=version) }}"></script>
+  <script src="{{ url_for('static', filename='views.js', v=version) }}"></script>
+</body>
+</html>

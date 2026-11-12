@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "probel-pangolin"
+dynamic = ["version"]
+description = "Probel Pangolin controls routers over SW-P-08, simulates a router and traces every frame, for testing: desktop window, web interface and REST API."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Marcus Mathy" }]
+keywords = ["sw-p-08", "probel", "router", "matrix", "kreuzschiene", "broadcast", "snell", "grass valley"]
+dependencies = [
+    "flask>=3.0",
+    # The library comes straight from its repository at a fixed tag, never by name from a package index.
+    "probelpangolin @ git+https://github.com/MarcusMa-dotcom/probel-pangolin-lib@v0.1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.urls]
+Homepage = "https://github.com/MarcusMa-dotcom/probel-pangolin"
+Library = "https://github.com/MarcusMa-dotcom/probel-pangolin-lib"
+
+[project.scripts]
+probel-pangolin = "probelpangolin_app.__main__:main"
+
+[tool.setuptools]
+packages = ["probelpangolin_app"]
+
+[tool.setuptools.dynamic]
+version = { attr = "probelpangolin_app.__version__" }
+
+[tool.setuptools.package-data]
+probelpangolin_app = ["templates/*.html", "static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

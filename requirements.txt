@@ -1,0 +1,4 @@
+flask>=3.0
+# The library, straight from its repository at a fixed tag.
+# To work on both at once, clone it next to this folder and run: pip install -e ../probel-pangolin-lib
+probelpangolin @ git+https://github.com/MarcusMa-dotcom/probel-pangolin-lib@v0.1.0
